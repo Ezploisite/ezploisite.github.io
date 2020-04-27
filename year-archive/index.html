@@ -299,7 +299,7 @@
   
     <li>
       <a href="#2020">
-        <strong>2020</strong> <span class="taxonomy__count">1</span>
+        <strong>2020</strong> <span class="taxonomy__count">2</span>
       </a>
     </li>
   
@@ -310,6 +310,46 @@
   <section id="2020" class="taxonomy__section">
     <h2 class="archive__subtitle">2020</h2>
     <div class="entries-list">
+      
+        
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-holiday/" rel="permalink">Holiday - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-04-28T00:00:00+02:00">April 28, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-holiday/holiday_logo.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Holiday was a hard box with a SQL Injection through a post form to retrieve credentials to login. Once gained access, we can stole the admin cookie with an XSS stored in the web page. After that, we can perform command injection through a form, bypassing the regex and obtain the reverse shell on the remote system. For the privesc we have sudo rights with npm to install our malicious json package and getting root shell.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#Holiday" class="page__meta btn" rel="tag">Holiday</a>
+    
+      <a href="/tags/#SQL Injection" class="page__meta btn" rel="tag">SQL Injection</a>
+    
+      <a href="/tags/#XSS Stored" class="page__meta btn" rel="tag">XSS Stored</a>
+    
+      <a href="/tags/#Command Injection" class="page__meta btn" rel="tag">Command Injection</a>
+    
+      <a href="/tags/#Sudo npm" class="page__meta btn" rel="tag">Sudo npm</a>
+    
+  </article>
+</div>
+
       
         
 
