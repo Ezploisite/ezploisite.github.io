@@ -8,4 +8,9 @@ var store = [{
         "excerpt":"Holiday was a hard box with a SQL Injection through a post form to retrieve credentials to login. Once gained access, we can stole the admin cookie with an XSS stored in the web page. After that, we can perform command injection through a form, bypassing the regex and obtain...","categories": ["hackthebox"],
         "tags": ["Holiday","SQL Injection","XSS Stored","Command Injection","Sudo npm"],
         "url": "https://ezploisite.it/htb-writeup-holiday/",
-        "teaser":"https://ezploisite.it/assets/images/htb-writeup-holiday/holiday_logo.webp"}]
+        "teaser":"https://ezploisite.it/assets/images/htb-writeup-holiday/holiday_logo.webp"},{
+        "title": "Kotarak - Hack The Box",
+        "excerpt":"Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find...","categories": ["hackthebox"],
+        "tags": ["Kotarak","SSRF","NTDS files","WGET Vulnerable"],
+        "url": "https://ezploisite.it/htb-writeup-kotarak/",
+        "teaser":"https://ezploisite.it/assets/images/htb-writeup-kotarak/kotarak_logo.png"}]

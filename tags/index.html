@@ -372,6 +372,38 @@
         </li>
       
     
+      
+        <li>
+          <a href="#kotarak">
+            <strong>Kotarak</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
+      
+        <li>
+          <a href="#ssrf">
+            <strong>SSRF</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
+      
+        <li>
+          <a href="#ntds-files">
+            <strong>NTDS files</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
+      
+        <li>
+          <a href="#wget-vulnerable">
+            <strong>WGET Vulnerable</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
   
 </ul>
 
@@ -809,6 +841,198 @@
       <a href="/tags/#Command Injection" class="page__meta btn" rel="tag">Command Injection</a>
     
       <a href="/tags/#Sudo npm" class="page__meta btn" rel="tag">Sudo npm</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="kotarak" class="taxonomy__section">
+        <h2 class="archive__subtitle">Kotarak</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-kotarak/" rel="permalink">Kotarak - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-04-28T00:00:00+02:00">April 28, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-kotarak/kotarak_logo.png" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find 2 important NTDS files where we can extract the hashes with the impacket tool secretsdump.py cracking the Administrator’s hash and elevate as Atanas. For the privesc we got a wget version vulnerable and a crontab that download some archivie files from another subnet, with a wget vulnerable too.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#Kotarak" class="page__meta btn" rel="tag">Kotarak</a>
+    
+      <a href="/tags/#SSRF" class="page__meta btn" rel="tag">SSRF</a>
+    
+      <a href="/tags/#NTDS files" class="page__meta btn" rel="tag">NTDS files</a>
+    
+      <a href="/tags/#WGET Vulnerable" class="page__meta btn" rel="tag">WGET Vulnerable</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="ssrf" class="taxonomy__section">
+        <h2 class="archive__subtitle">SSRF</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-kotarak/" rel="permalink">Kotarak - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-04-28T00:00:00+02:00">April 28, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-kotarak/kotarak_logo.png" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find 2 important NTDS files where we can extract the hashes with the impacket tool secretsdump.py cracking the Administrator’s hash and elevate as Atanas. For the privesc we got a wget version vulnerable and a crontab that download some archivie files from another subnet, with a wget vulnerable too.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#Kotarak" class="page__meta btn" rel="tag">Kotarak</a>
+    
+      <a href="/tags/#SSRF" class="page__meta btn" rel="tag">SSRF</a>
+    
+      <a href="/tags/#NTDS files" class="page__meta btn" rel="tag">NTDS files</a>
+    
+      <a href="/tags/#WGET Vulnerable" class="page__meta btn" rel="tag">WGET Vulnerable</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="ntds-files" class="taxonomy__section">
+        <h2 class="archive__subtitle">NTDS files</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-kotarak/" rel="permalink">Kotarak - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-04-28T00:00:00+02:00">April 28, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-kotarak/kotarak_logo.png" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find 2 important NTDS files where we can extract the hashes with the impacket tool secretsdump.py cracking the Administrator’s hash and elevate as Atanas. For the privesc we got a wget version vulnerable and a crontab that download some archivie files from another subnet, with a wget vulnerable too.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#Kotarak" class="page__meta btn" rel="tag">Kotarak</a>
+    
+      <a href="/tags/#SSRF" class="page__meta btn" rel="tag">SSRF</a>
+    
+      <a href="/tags/#NTDS files" class="page__meta btn" rel="tag">NTDS files</a>
+    
+      <a href="/tags/#WGET Vulnerable" class="page__meta btn" rel="tag">WGET Vulnerable</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="wget-vulnerable" class="taxonomy__section">
+        <h2 class="archive__subtitle">WGET Vulnerable</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-kotarak/" rel="permalink">Kotarak - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-04-28T00:00:00+02:00">April 28, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-kotarak/kotarak_logo.png" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find 2 important NTDS files where we can extract the hashes with the impacket tool secretsdump.py cracking the Administrator’s hash and elevate as Atanas. For the privesc we got a wget version vulnerable and a crontab that download some archivie files from another subnet, with a wget vulnerable too.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#Kotarak" class="page__meta btn" rel="tag">Kotarak</a>
+    
+      <a href="/tags/#SSRF" class="page__meta btn" rel="tag">SSRF</a>
+    
+      <a href="/tags/#NTDS files" class="page__meta btn" rel="tag">NTDS files</a>
+    
+      <a href="/tags/#WGET Vulnerable" class="page__meta btn" rel="tag">WGET Vulnerable</a>
     
   </article>
 </div>

