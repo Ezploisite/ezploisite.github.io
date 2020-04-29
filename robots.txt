@@ -1,1 +1,2 @@
-Sitemap: https://ezploisite.it/sitemap.xml
+User-Agent: *
+Allow: /
