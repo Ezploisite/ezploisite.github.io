@@ -16,6 +16,6 @@ var store = [{
         "teaser":"https://ezploisite.it/assets/images/htb-writeup-kotarak/kotarak_logo.png"},{
         "title": "Registry - Hack The Box",
         "excerpt":"Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the...","categories": ["hackthebox"],
-        "tags": ["We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.","After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.","Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.","For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root."],
+        "tags": ["Registry","Docker Registry Vulnerable","Fetch Sqlite3 DB","Shell Upload","Sudo -l"],
         "url": "https://ezploisite.it/htb-writeup-registry/",
         "teaser":"https://ezploisite.it/assets/images/htb-writeup-registry/registry.webp"}]
