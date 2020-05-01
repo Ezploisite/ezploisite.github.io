@@ -15,7 +15,7 @@ var store = [{
         "url": "https://ezploisite.it/htb-writeup-kotarak/",
         "teaser":"https://ezploisite.it/assets/images/htb-writeup-kotarak/kotarak_logo.png"},{
         "title": "Registry - Hack The Box",
-        "excerpt":"asdasdasd Summary Portscan TCP We discover on the remote host 3 open TCP ports: 22 SSH, 80 HTTP and 442 SSL. root@lorenzooo ~ -&gt; nmap -sV -sC -O 10.10.10.159 Starting Nmap 7.80 ( https://nmap.org ) at 2020-05-01 06:09 CEST Stats: 0:00:00 elapsed; 0 hosts completed (0 up), 0 undergoing Script...","categories": ["hackthebox"],
-        "tags": [],
+        "excerpt":"Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the...","categories": ["hackthebox"],
+        "tags": ["We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.","After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.","Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.","For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root."],
         "url": "https://ezploisite.it/htb-writeup-registry/",
         "teaser":"https://ezploisite.it/assets/images/htb-writeup-registry/registry.webp"}]

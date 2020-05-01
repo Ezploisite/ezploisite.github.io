@@ -404,6 +404,38 @@
         </li>
       
     
+      
+        <li>
+          <a href="#we-can-extract-from-docker-registry-some-archivies-which-allows-us-to-find-the-ssh-key-for-the-user-bolt">
+            <strong>We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
+      
+        <li>
+          <a href="#after-some-enumeration-we-find-a-database-s-file-called-bolt-db-where-we-can-extract-and-crack-the-password-for-bolt-cms">
+            <strong>After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
+      
+        <li>
+          <a href="#then-inside-bolt-we-have-to-upload-a-python-reverse-shell-and-get-her-to-bolt-connected-in-ssh">
+            <strong>Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
+      
+        <li>
+          <a href="#for-the-privesc-with-www-data-we-can-run-restic-backup-as-sudo-pointing-to-our-listening-restic-server-to-get-the-ssh-key-for-root">
+            <strong>For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</strong> <span class="taxonomy__count">1</span>
+          </a>
+        </li>
+      
+    
   
 </ul>
 
@@ -1033,6 +1065,198 @@
       <a href="/tags/#NTDS files" class="page__meta btn" rel="tag">NTDS files</a>
     
       <a href="/tags/#WGET Vulnerable" class="page__meta btn" rel="tag">WGET Vulnerable</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="we-can-extract-from-docker-registry-some-archivies-which-allows-us-to-find-the-ssh-key-for-the-user-bolt" class="taxonomy__section">
+        <h2 class="archive__subtitle">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-registry/" rel="permalink">Registry - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-05-01T00:00:00+02:00">May 01, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-registry/registry.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt." class="page__meta btn" rel="tag">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</a>
+    
+      <a href="/tags/#After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS." class="page__meta btn" rel="tag">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</a>
+    
+      <a href="/tags/#Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH." class="page__meta btn" rel="tag">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</a>
+    
+      <a href="/tags/#For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root." class="page__meta btn" rel="tag">For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="after-some-enumeration-we-find-a-database-s-file-called-bolt-db-where-we-can-extract-and-crack-the-password-for-bolt-cms" class="taxonomy__section">
+        <h2 class="archive__subtitle">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-registry/" rel="permalink">Registry - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-05-01T00:00:00+02:00">May 01, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-registry/registry.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt." class="page__meta btn" rel="tag">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</a>
+    
+      <a href="/tags/#After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS." class="page__meta btn" rel="tag">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</a>
+    
+      <a href="/tags/#Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH." class="page__meta btn" rel="tag">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</a>
+    
+      <a href="/tags/#For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root." class="page__meta btn" rel="tag">For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="then-inside-bolt-we-have-to-upload-a-python-reverse-shell-and-get-her-to-bolt-connected-in-ssh" class="taxonomy__section">
+        <h2 class="archive__subtitle">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-registry/" rel="permalink">Registry - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-05-01T00:00:00+02:00">May 01, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-registry/registry.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt." class="page__meta btn" rel="tag">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</a>
+    
+      <a href="/tags/#After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS." class="page__meta btn" rel="tag">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</a>
+    
+      <a href="/tags/#Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH." class="page__meta btn" rel="tag">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</a>
+    
+      <a href="/tags/#For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root." class="page__meta btn" rel="tag">For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</a>
+    
+  </article>
+</div>
+
+          
+        </div>
+        <a href="#page-title" class="back-to-top">Back to Top &uarr;</a>
+      </section>
+    
+  
+    
+      <section id="for-the-privesc-with-www-data-we-can-run-restic-backup-as-sudo-pointing-to-our-listening-restic-server-to-get-the-ssh-key-for-root" class="taxonomy__section">
+        <h2 class="archive__subtitle">For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</h2>
+        <div class="entries-list">
+          
+            
+
+
+
+<div class="list__item">
+  <article class="archive__item" itemscope itemtype="https://schema.org/CreativeWork">
+    
+    <h2 class="archive__item-title" itemprop="headline">
+      
+        <a href="/htb-writeup-registry/" rel="permalink">Registry - Hack The Box
+</a>
+        <img src="/assets/images/hackthebox.webp" alt="" style="height:24px; margin-left:10px">
+      
+    </h2>
+
+    <p class="page__meta">
+      
+        <i class="fa fa-fw fa-calendar" aria-hidden="true"></i> <time datetime="2020-05-01T00:00:00+02:00">May 01, 2020 </time>&emsp;
+      
+      
+    </p>
+
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-registry/registry.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.
+</p>
+    <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt." class="page__meta btn" rel="tag">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</a>
+    
+      <a href="/tags/#After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS." class="page__meta btn" rel="tag">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</a>
+    
+      <a href="/tags/#Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH." class="page__meta btn" rel="tag">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</a>
+    
+      <a href="/tags/#For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root." class="page__meta btn" rel="tag">For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</a>
     
   </article>
 </div>

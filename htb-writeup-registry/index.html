@@ -10,7 +10,7 @@
     <meta charset="utf-8">
 
 <!-- begin _includes/seo.html --><title>Registry - Hack The Box - ezploisite.it</title>
-<meta name="description" content="Posts about security and CTFs">
+<meta name="description" content="Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.">
 
 
 
@@ -21,7 +21,7 @@
 <meta property="og:url" content="https://ezploisite.it/htb-writeup-registry/">
 
 
-  <meta property="og:description" content="Posts about security and CTFs">
+  <meta property="og:description" content="Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.">
 
 
 
@@ -295,7 +295,7 @@
 
   <article class="page" itemscope itemtype="https://schema.org/CreativeWork">
     <meta itemprop="headline" content="Registry - Hack The Box">
-    <meta itemprop="description" content="">
+    <meta itemprop="description" content="Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.">
     <meta itemprop="datePublished" content="May 01, 2020">
     
 
@@ -318,7 +318,7 @@
         </p>
         <p><img src="/assets/images/htb-writeup-registry/registry_logo.jpg" alt="" /></p>
 
-<p>asdasdasd</p>
+<p>Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.</p>
 
 <h2 id="summary">Summary</h2>
 
@@ -1038,6 +1038,45 @@ ntrkzgnkotaxyju0ntrinda4yzbkztgw
       <footer class="page__meta">
         
         
+  
+
+
+  
+  
+  
+
+  <p class="page__taxonomy">
+    <strong><i class="fas fa-fw fa-tags" aria-hidden="true"></i> Tags: </strong>
+    <span itemprop="keywords">
+    
+      
+      
+      <a href="/tags/" class="page__taxonomy-item" rel="tag"></a><span class="sep">, </span>
+    
+      
+      
+      <a href="/tags/#for-the-privesc-with-www-data" class="page__taxonomy-item" rel="tag">For the privesc with www-data</a><span class="sep">, </span>
+    
+      
+      
+      <a href="/tags/#after-some-enumeration-we-find-a-database-s-file-called-bolt-db-where-we-can-extract-and-crack-the-password-for-bolt-cms" class="page__taxonomy-item" rel="tag">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</a><span class="sep">, </span>
+    
+      
+      
+      <a href="/tags/" class="page__taxonomy-item" rel="tag"></a><span class="sep">, </span>
+    
+      
+      
+      <a href="/tags/#then-inside-bolt-we-have-to-upload-a-python-reverse-shell-and-get-her-to-bolt-connected-in-ssh" class="page__taxonomy-item" rel="tag">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</a><span class="sep">, </span>
+    
+      
+      
+      <a href="/tags/#we-can-extract-from-docker-registry-some-archivies-which-allows-us-to-find-the-ssh-key-for-the-user-bolt" class="page__taxonomy-item" rel="tag">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</a>
+    
+    </span>
+  </p>
+
+
 
 
   

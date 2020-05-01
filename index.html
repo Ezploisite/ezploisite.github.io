@@ -292,9 +292,17 @@
       
     </p>
 
-    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-registry/registry.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">
+    <p class="archive__item-excerpt" itemprop="description"><img src="/assets/images/htb-writeup-registry/registry.webp" alt="" style="float: right;margin-right:10px; margin-left:20px; margin-bottom:10px; height:120px;">Registry was a hard box with a vulnerable Docker Registry who allow us to retrieve the ssh key for bolt. After some enumerations, we will found into bolt.db the credentials to login thourgh bolt CMS. We can upload a python reverse shell and obtain the connection with www-data. For the privesc we have sudo permission with www-data to run the restic backup which allow us to grub the root ssh key.
 </p>
     <i class="fas fa-tags"></i>
+    
+      <a href="/tags/#We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt." class="page__meta btn" rel="tag">We can extract from Docker Registry some archivies which allows us to find the ssh_key for the user Bolt.</a>
+    
+      <a href="/tags/#After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS." class="page__meta btn" rel="tag">After some enumeration we find a database's file called bolt.db where we can extract and crack the password for Bolt CMS.</a>
+    
+      <a href="/tags/#Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH." class="page__meta btn" rel="tag">Then inside Bolt we have to upload a python reverse shell and get her to Bolt connected in SSH.</a>
+    
+      <a href="/tags/#For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root." class="page__meta btn" rel="tag">For the privesc with www-data, we can run restic backup as sudo pointing to our listening restic server to get the ssh key for root.</a>
     
   </article>
 </div>
