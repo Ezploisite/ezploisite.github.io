@@ -13,4 +13,9 @@ var store = [{
         "excerpt":"Kotarak was a hard box with a SSRF through a form on a webpage that allow us to retrieve the credentials from a backup files. We can login on Apache Tomcat and upload a .RAW reverse shell to get an entry point with the webserver user Tomcat. We will find...","categories": ["hackthebox"],
         "tags": ["Kotarak","SSRF","NTDS files","WGET Vulnerable"],
         "url": "https://ezploisite.it/htb-writeup-kotarak/",
-        "teaser":"https://ezploisite.it/assets/images/htb-writeup-kotarak/kotarak_logo.png"}]
+        "teaser":"https://ezploisite.it/assets/images/htb-writeup-kotarak/kotarak_logo.png"},{
+        "title": "Registry - Hack The Box",
+        "excerpt":"asdasdasd Summary Portscan TCP We discover on the remote host 3 open TCP ports: 22 SSH, 80 HTTP and 442 SSL. root@lorenzooo ~ -&gt; nmap -sV -sC -O 10.10.10.159 Starting Nmap 7.80 ( https://nmap.org ) at 2020-05-01 06:09 CEST Stats: 0:00:00 elapsed; 0 hosts completed (0 up), 0 undergoing Script...","categories": ["hackthebox"],
+        "tags": [],
+        "url": "https://ezploisite.it/htb-writeup-registry/",
+        "teaser":"https://ezploisite.it/assets/images/htb-writeup-registry/registry.webp"}]
